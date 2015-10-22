@@ -25,8 +25,9 @@ class InsultDetector:
         # self.model1 = SVC(kernel='linear', probability=True, random_state=0)
         # self.model = LogisticRegression(dual=True, multi_class='multinomial', solver='lbfgs')
         # self.model = SGDClassifier(loss='perceptron', alpha=0.000001, n_iter=50, penalty='l1')
-        toker = tokenize.RegexpTokenizer(r'((?<=[^\w\s])\w(?=[^\w\s])|(\W))+', gaps=True)
-        self.vec = CountVectorizer(tokenizer=toker.tokenize, ngram_range=(1, 2))
+        # toker = tokenize.RegexpTokenizer(r'((?<=[^\w\s])\w(?=[^\w\s])|(\W))+', gaps=True)
+        toker = tokenize.WordPunctTokenizer()
+        self.vec = CountVectorizer(tokenizer=toker.tokenize, ngram_range=(1, 3))
         self.model = LinearSVC(C=0.5, tol=1e-5, dual=True)
         self.insults = [list(), list()]
         self.results = [list(), list()]
@@ -190,7 +191,7 @@ class InsultDetector:
 
 
 
-    # scores = cross_validation.cross_val_score(model, X, dec.insults[1], cv=10, scoring='f1', n_jobs=4)
+    # scores = cross_validation.cross_val_score(dec.model, X, dec.insults[1], cv=10, scoring='f1', n_jobs=4)
     # print(scores.mean())
 
     # dec.train(data)
