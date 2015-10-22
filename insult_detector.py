@@ -3,15 +3,16 @@ __author__ = 'zuban32'
 import json
 import nltk
 import numpy
-from sklearn.preprocessing import normalize
+from sklearn.feature_selection import *
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics import f1_score
 from sklearn.linear_model.logistic import LogisticRegression
 from sklearn.linear_model import SGDClassifier
 from sklearn import cross_validation
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.svm import SVC, LinearSVC, NuSVC
-from sklearn.ensemble.gradient_boosting import GradientBoostingClassifier
+from sklearn.svm import SVC, LinearSVC
+from sklearn.pipeline import Pipeline
+from sklearn.grid_search import GridSearchCV
+import nltk.tokenize as tokenize
 
 class InsultDetector:
 
@@ -22,9 +23,11 @@ class InsultDetector:
         """
         # self.model = SVC(kernel='poly', degree=2)
         # self.model1 = SVC(kernel='linear', probability=True, random_state=0)
-        self.model1 = LogisticRegression(dual=True, multi_class='multinomial', solver='lbfgs')
-        self.model2 = SGDClassifier(loss='perceptron', alpha=0.000001, n_iter=50, penalty='l1')
-        # self.model1 = LinearSVC()
+        # self.model = LogisticRegression(dual=True, multi_class='multinomial', solver='lbfgs')
+        # self.model = SGDClassifier(loss='perceptron', alpha=0.000001, n_iter=50, penalty='l1')
+        toker = tokenize.RegexpTokenizer(r'((?<=[^\w\s])\w(?=[^\w\s])|(\W))+', gaps=True)
+        self.vec = CountVectorizer(tokenizer=toker.tokenize, ngram_range=(1, 2))
+        self.model = LinearSVC(C=0.5, tol=1e-5, dual=True)
         self.insults = [list(), list()]
         self.results = [list(), list()]
         self.num = 0
@@ -51,15 +54,9 @@ class InsultDetector:
         :return: None
         """
         self.extract(labeled_discussions)
-        # max_len = 0
-        # for post in self.insults[0]:
-        #     cur_len = len(nltk.word_tokenize(post))
-        #     if cur_len > max_len:
-        #         max_len = cur_len
         self.vec = CountVectorizer()
         X = self.vec.fit_transform(self.insults[0])
-        self.model1.fit(X, self.insults[1])
-        self.model2.fit(X, self.insults[1])
+        self.model.fit(X, self.insults[1])
 
     def classify_post(self, post):
         if 'insult' in post.keys():
@@ -90,7 +87,7 @@ class InsultDetector:
                 for post in root['children']:
                     self.classify_post(post)
         X = self.vec.transform(self.results[0])
-        self.results[1] = list(map(lambda x, y: x or y, self.model1.predict(X), self.model2.predict(X)))
+        self.results[1] = self.model.predict(X)
 
         for discussion in unlabeled_discussions:
             root = discussion['root']
@@ -106,6 +103,7 @@ class InsultDetector:
 #     dec = InsultDetector()
 #     dec.extract(data)
 
+
     # max_len = 0
     # sum_len = 0
     # for post in dec.insults[0]:
@@ -118,8 +116,46 @@ class InsultDetector:
 
     # cv_folds = 10
     #
-    # dec.vec = CountVectorizer(ngram_range=(1, 1))
+    # dec.vec = CountVectorizer(ngram_range=(1, 2))
     # X = dec.vec.fit_transform(dec.insults[0])
+
+    # toker = tokenize.RegexpTokenizer(r'((?<=[^\w\s])\w(?=[^\w\s])|(\W))+', gaps=True)
+    # text_clf = Pipeline([('vect', CountVectorizer(tokenizer=toker.tokenize)),
+    #                      ('clf', LinearSVC(C=0.5, tol=1e-5, dual=True)),
+    #                      ])
+
+    # vec = CountVectorizer(tokenizer=toker.tokenize)
+    # model = LinearSVC(C=0.5, tol=1e-5, dual=True)
+    # X = dec.vec.fit_transform(dec.insults[0])
+
+    # parameters = {
+    #     'vect__ngram_range': [(1, 1), (1, 2)],
+        # 'clf__C': (0.5, 1.0, 1.5),
+        # 'clf__tol': (1e-5, 1e-3, 1e-4),
+        # 'clf__max_iter': list(range(10, 151, 10)),
+        # 'clf__penalty': ('l1', 'l2'),
+        # 'clf__loss': ('hinge', 'squared_hinge'),
+        # 'clf__dual': (True, False)
+    # }
+
+    # gs_clf = GridSearchCV(text_clf, parameters, n_jobs=-1)
+    # gs_clf = gs_clf.fit(dec.insults[0], dec.insults[1])
+
+    # print(gs_clf.grid_scores_)
+
+    # best_parameters, score, _ = max(gs_clf.grid_scores_, key=lambda x: x[1])
+
+    # for param_name in sorted(parameters.keys()):
+    #     print("%s: %r" % (param_name, best_parameters[param_name]))
+    #
+    # print('score = %d\n' % score)
+
+
+    # sel = VarianceThreshold(threshold=0.9)
+    # X_new = sel.fit_transform(X)
+    # print(X_new.shape)
+    # X_new = dec.svc.fit_transform(X, dec.insults[1])
+    # X_new = SelectKBest(chi2, k=20).fit_transform(X, dec.insults[1])
     # X = normalize(X.)
     # part_len = int(len(dec.insults[0]) / cv_folds)
     # new_data = numpy.array(dec.insults[0], copy=False)
@@ -152,9 +188,11 @@ class InsultDetector:
     #     total += f1_score(new_res[mask_pred], res)
     #     # print('i = %d, score = %f\n' % (i, f1_score(new_res[mask_pred], res)))
 
-    # scores = cross_validation.cross_val_score(dec.model, X, dec.insults[1], cv=5, scoring='f1', n_jobs=4)
+
+
+    # scores = cross_validation.cross_val_score(model, X, dec.insults[1], cv=10, scoring='f1', n_jobs=4)
     # print(scores.mean())
-#
+
     # dec.train(data)
     # predicted = dec.classify(data)
     # print(data == predicted)
