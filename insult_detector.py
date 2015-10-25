@@ -2,12 +2,13 @@ __author__ = 'zuban32'
 
 import json
 import nltk
+import numpy
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics import f1_score
 from sklearn.linear_model.logistic import LogisticRegression
 from sklearn.linear_model import SGDClassifier
 from sklearn import cross_validation
-from sklearn.svm import LinearSVC
+from sklearn.svm import LinearSVC, SVC
 from sklearn.pipeline import Pipeline
 from sklearn.grid_search import GridSearchCV
 import nltk.tokenize as tokenize
@@ -19,14 +20,14 @@ class InsultDetector:
         it is constructor. Place the initialization here. Do not place train of the model here.
         :return: None
         """
-        # self.model = SVC(kernel='poly', degree=2)
+        # self.model = SVC(kernel='poly', degree=2, class_weight='auto')
         # self.model1 = SVC(kernel='linear', probability=True, random_state=0)
-        # self.model = LogisticRegression(dual=True, multi_class='multinomial', solver='lbfgs')
-        # self.model = SGDClassifier(loss='perceptron', alpha=0.000001, n_iter=50, penalty='l1')
+        self.model = LogisticRegression(class_weight='auto')
+        # self.model = SGDClassifier(class_weight='auto', loss='log', alpha=0.000001, n_iter=50)
         # self.toker = tokenize.RegexpTokenizer(r'((?<=[^\w\s])\w(?=[^\w\s])|(\W))+', gaps=True, discard_empty=True)
         # self.toker = tokenize.WordPunctTokenizer()
-        self.vec = CountVectorizer(tokenizer=nltk.word_tokenize, ngram_range=(1, 3))
-        self.model = LinearSVC(class_weight='auto', dual=True)
+        self.vec = CountVectorizer(tokenizer=nltk.word_tokenize, ngram_range=(1, 2))
+        # self.model = LinearSVC(class_weight='auto', dual=False)
         self.insults = [list(), list()]
         self.results = [list(), list()]
         self.num = 0
@@ -35,6 +36,8 @@ class InsultDetector:
         if 'insult' in post.keys():
             self.insults[0].append(post['text'])
             self.insults[1].append(post['insult'])
+            # if post['insult']:
+            #     print(post['text'] + '\n' + str(post['insult']))
         if 'children' in post.keys():
             for post in post['children']:
                 self.extract_post(post)
@@ -95,42 +98,44 @@ class InsultDetector:
 
         return unlabeled_discussions
 
-# if __name__ == '__main__':
-#     with open('discussions.json', encoding="utf-8") as data_file:
-#         data = json.load(data_file)
-#     dec = InsultDetector()
-    # dec.extract(data)
+if __name__ == '__main__':
+    with open('discussions.json', encoding="utf-8") as data_file:
+        data = json.load(data_file)
+    dec = InsultDetector()
+    dec.extract(data)
 
-    # X = dec.vec.fit_transform(dec.insults[0])
+    X = dec.vec.fit_transform(dec.insults[0])
 
-    # text_clf = Pipeline([('vect', CountVectorizer(tokenizer=toker.tokenize)),
-    #                      ('clf', LinearSVC(C=0.5, tol=1e-5, dual=True)),
-    #                      ])
-
-    # parameters = {
-    #     'vect__ngram_range': [(1, 1), (1, 2)],
-        # 'clf__C': (0.5, 1.0, 1.5),
-        # 'clf__tol': (1e-5, 1e-3, 1e-4),
-        # 'clf__max_iter': list(range(10, 151, 10)),
-        # 'clf__penalty': ('l1', 'l2'),
-        # 'clf__loss': ('hinge', 'squared_hinge'),
-        # 'clf__dual': (True, False)
-    # }
-
-    # gs_clf = GridSearchCV(text_clf, parameters, n_jobs=-1)
-    # gs_clf = gs_clf.fit(dec.insults[0], dec.insults[1])
-
-    # print(gs_clf.grid_scores_)
-
-    # best_parameters, score, _ = max(gs_clf.grid_scores_, key=lambda x: x[1])
-
-    # for param_name in sorted(parameters.keys()):
-    #     print("%s: %r" % (param_name, best_parameters[param_name]))
+    # n_folds = 5
+    # kf = cross_validation.KFold(len(dec.insults[0]), n_folds=n_folds)
+    # data = numpy.array(dec.insults[0])
+    # res = numpy.array(dec.insults[1])
     #
-    # print('score = %d\n' % score)
-
-    # scores = cross_validation.cross_val_score(dec.model, X, dec.insults[1], cv=10, scoring='f1', n_jobs=-1)
+    # scores = numpy.zeros(n_folds)
+    # i = 0
+    #
+    # for train_index, test_index in kf:
+    #     model = LinearSVC(class_weight='auto', dual=True)
+    #
+    #     X = dec.vec.fit_transform(data[train_index])
+    #     model.fit(X, res[train_index])
+    #     X = dec.vec.transform(data[test_index])
+    #     cur_res = model.predict(X)
+    #
+    #     # for post, real, cur in zip(data[test_index], res, cur_res):
+    #     #     if real and not cur:
+    #     #         print('Missed\n' + post)
+    #     #     elif not real and cur:
+    #     #         print('FP\n' + post)
+    #
+    #     scores[i] = f1_score(res[test_index], cur_res)
+    #     print('Score[%d] = %f\n' % (i, scores[i]))
+    #     i += 1
+    #
     # print(scores.mean())
+
+    scores = cross_validation.cross_val_score(dec.model, X, dec.insults[1], cv=10, scoring='f1', n_jobs=-1)
+    print(scores.mean())
 
     # dec.train(data)
     # predicted = dec.classify(data)
