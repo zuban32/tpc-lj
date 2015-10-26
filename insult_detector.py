@@ -8,10 +8,20 @@ from sklearn.metrics import f1_score
 from sklearn.linear_model.logistic import LogisticRegression
 from sklearn.linear_model import SGDClassifier
 from sklearn import cross_validation
-from sklearn.svm import LinearSVC, SVC
+from sklearn.svm import LinearSVC
 from sklearn.pipeline import Pipeline
 from sklearn.grid_search import GridSearchCV
 import nltk.tokenize as tokenize
+from nltk import SnowballStemmer
+
+def myTokenizer(text):
+    tokens = list()
+    # toker = tokenize.WordPunctTokenizer()
+    # toker = tokenize.RegexpTokenizer(r'((?<=[^\w\s])\w(?=[^\w\s])|(\W))+', gaps=True, discard_empty=True)
+    words = nltk.word_tokenize(text)
+    # for word in words:
+    #     tokens.append(SnowballStemmer('russian').stem(word))
+    return words
 
 class InsultDetector:
 
@@ -20,14 +30,10 @@ class InsultDetector:
         it is constructor. Place the initialization here. Do not place train of the model here.
         :return: None
         """
-        # self.model = SVC(kernel='poly', degree=2, class_weight='auto')
-        # self.model1 = SVC(kernel='linear', probability=True, random_state=0)
-        self.model = LogisticRegression(class_weight='auto')
+        # self.model = LogisticRegression(class_weight='auto')
         # self.model = SGDClassifier(class_weight='auto', loss='log', alpha=0.000001, n_iter=50)
-        # self.toker = tokenize.RegexpTokenizer(r'((?<=[^\w\s])\w(?=[^\w\s])|(\W))+', gaps=True, discard_empty=True)
-        # self.toker = tokenize.WordPunctTokenizer()
-        self.vec = CountVectorizer(tokenizer=nltk.word_tokenize, ngram_range=(1, 2))
-        # self.model = LinearSVC(class_weight='auto', dual=False)
+        self.vec = CountVectorizer(tokenizer=nltk.word_tokenize, ngram_range=(1, 2), max_df=0.45)
+        self.model = LinearSVC(class_weight='auto', dual=False)
         self.insults = [list(), list()]
         self.results = [list(), list()]
         self.num = 0
@@ -103,6 +109,10 @@ if __name__ == '__main__':
         data = json.load(data_file)
     dec = InsultDetector()
     dec.extract(data)
+
+    # print(dec.insults[0][0])
+    # for token in nltk.PunktWordTokenizer().tokenize(dec.insults[0][0]):
+    #     print(SnowballStemmer('russian').stem(token))
 
     X = dec.vec.fit_transform(dec.insults[0])
 
