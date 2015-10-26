@@ -3,7 +3,7 @@ __author__ = 'zuban32'
 import json
 import nltk
 import numpy
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, HashingVectorizer
 from sklearn.metrics import f1_score
 from sklearn.linear_model.logistic import LogisticRegression
 from sklearn.linear_model import SGDClassifier
@@ -16,12 +16,13 @@ from nltk import SnowballStemmer
 
 def myTokenizer(text):
     tokens = list()
-    # toker = tokenize.WordPunctTokenizer()
+    toker = tokenize.WordPunctTokenizer()
     # toker = tokenize.RegexpTokenizer(r'((?<=[^\w\s])\w(?=[^\w\s])|(\W))+', gaps=True, discard_empty=True)
-    words = nltk.word_tokenize(text)
-    # for word in words:
-    #     tokens.append(SnowballStemmer('russian').stem(word))
-    return words
+    words = toker.tokenize(text)
+    for word in words:
+        if word.isalpha() or len(word) > 1:
+            tokens.append(SnowballStemmer('russian').stem(word))
+    return tokens
 
 class InsultDetector:
 
@@ -31,9 +32,9 @@ class InsultDetector:
         :return: None
         """
         # self.model = LogisticRegression(class_weight='auto')
-        # self.model = SGDClassifier(class_weight='auto', loss='log', alpha=0.000001, n_iter=50)
-        self.vec = CountVectorizer(tokenizer=nltk.word_tokenize, ngram_range=(1, 2), max_df=0.45)
-        self.model = LinearSVC(class_weight='auto', dual=False)
+        self.model = SGDClassifier(class_weight='auto', loss='log', alpha=0.000001, n_iter=50)
+        self.vec = CountVectorizer(tokenizer=myTokenizer, ngram_range=(1, 2), max_df=0.55, binary=True)
+        # self.model = LinearSVC(class_weight='auto', dual=False)  # best variant
         self.insults = [list(), list()]
         self.results = [list(), list()]
         self.num = 0
@@ -115,6 +116,8 @@ if __name__ == '__main__':
     #     print(SnowballStemmer('russian').stem(token))
 
     X = dec.vec.fit_transform(dec.insults[0])
+    # for feat in dec.vec.get_feature_names():
+    #     print(feat)
 
     # n_folds = 5
     # kf = cross_validation.KFold(len(dec.insults[0]), n_folds=n_folds)
